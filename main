@@ -1,0 +1,1045 @@
+package WAVLTree;
+
+/**
+ * Lital Ron -  id(311177810) ,username(litalron) 
+ * Tal Hadar -  id(200443968) ,username(talhadar1) 
+ * WAVLTree
+ *
+ * An implementation of a WAVL Tree with distinct integer keys and info
+ *
+ *
+ */
+public class WAVLTree {
+	private IWAVLNode root;
+	private int size = 0;
+	private IWAVLNode min;
+	private IWAVLNode max;
+	final static int EXTERNAL_LEAF_RANK = -1; // External leaf rank in this tree is equals to -1.
+	final static int EXTERNAL_LEAF_SIZE = 0; // External leaf size in this tree is equals to ZERO.
+	final static int EXTERNAL_LEAF_KEY = Integer.MIN_VALUE; // the minimum value represented by														// Integer-Type(-2147483648)
+	final static int LEAF_RANK = 0; // Leaf rank is set to be ZERO
+	private final WAVLNode externalleaf = new WAVLNode();
+
+	/**
+	 * public void setRoot() sets the root of the tree to be the (IWAVLNode)root
+	 * entered.
+	 */
+	public void setRoot(IWAVLNode root) {
+		this.root = root;
+	}
+
+	/**
+	 * Default constructor WAVL Tree for future use in this class. (we don't use it
+	 * in this project)
+	 * 
+	 * @return
+	 **/
+	public WAVLTree() {
+		this.root = null;
+		this.min = null;
+		this.max = null;
+	}
+	/**
+	 * public boolean empty()
+	 *
+	 * returns true if and only if the tree is empty
+	 *
+	 */
+	public boolean empty() {
+		if (this.size == 0) // checks if the size of the tree is 'zero' if yes the tree is empty
+		{
+			return true; // size equals to ZERO --> the tree is Empty
+		}
+		return false;// size not equals to ZERO --> the tree is NOT Empty
+	}
+
+	/** demote the rank of node **/
+	public void DemoteRank(IWAVLNode node) {
+		node.setRank(node.getRank() - 1);
+	}
+
+	/** promote the rank of node **/
+	public void PromteRank(IWAVLNode node) {
+		node.setRank(node.getRank() + 1);
+	}
+
+	/**
+	 * public String search(int k)
+	 *
+	 * returns the info of an item with key k if it exists in the tree otherwise,
+	 * returns null
+	 */
+	public String search(int k) {
+		IWAVLNode nodetofind = searchNode(k);
+		if (nodetofind != null) {
+			return nodetofind.getValue();
+		}
+		return null;
+	}
+
+	/**
+	 * public IWAVLNode searchNode(int k) Return the IWAVLNode with key k
+	 * if this key is not in the tree the method return's "null"
+	 **/
+	public IWAVLNode searchNode(int k) {
+		IWAVLNode tree = this.root;
+		while (tree != null && tree != externalleaf) {
+			int checkedkey = tree.getKey();
+			if (checkedkey == k) {
+				return tree;
+			} else if (checkedkey < k) {
+				tree = tree.getRight();
+			} else if (checkedkey > k) {
+				tree = tree.getLeft();
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * public int insert(int k, String i)
+	 *
+	 * inserts an item with key k and info i to the WAVL tree. the tree must remain
+	 * valid (keep its invariants). returns the number of rebalancing operations, or
+	 * 0 if no rebalancing operations were necessary. returns -1 if an item with key
+	 * k already exists in the tree.
+	 */
+	public int insert(int key, String info) {
+		IWAVLNode newnode = new WAVLNode(key, info, null);
+		if (this.empty()) { // if empty the new node is the root of the tree
+			this.root = newnode;
+			this.min = this.root; // sets the only node to be MIN of the tree
+			this.max = this.root; // sets the only node to be MAX of the tree
+			this.size++;
+			return 0;
+		}
+		int balCounter = insertationFinder(newnode, this.root); // return the number of rebalance moves that were made
+		balCounter = balCounter + Rebalance(this.root, null, 'L'); // rebalnceing the tree by taking care of all the
+																	// cases & returning
+		// the number of rebalances which were made for each WAVLNode
+		if (balCounter != -1) {
+			this.size++;
+		}
+		trioUpDate(newnode); // Update sizes of the node and his "family"
+		return balCounter;
+	}
+
+	/**
+	 * public int insertationFinder(IWAVLNode newnode, IWAVLNode pointer) inserting
+	 * a new IWAVLNode and return the number of rebalnces that were made we do not
+	 * insert the root here only in insert
+	 **/
+	public int insertationFinder(IWAVLNode newnode, IWAVLNode pointer) {
+		if (pointer.getRank() != -1) {
+			if (pointer.getKey() > newnode.getKey()) {
+
+				if (pointer.getLeft().getRank() == -1) {
+					pointer.setLeftChild(newnode);
+					newnode.setParent(pointer);
+					if (this.min == pointer) {
+						this.min = newnode;
+					}
+					return Rebalance(pointer.getLeft(), pointer, 'L') + 0;
+				}
+				int balCounter = insertationFinder(newnode, pointer.getLeft());
+				return Rebalance(pointer.getLeft(), pointer, 'L') + balCounter;
+
+			} else if (pointer.getKey() < newnode.getKey()) {
+				if (pointer.getRight().getRank() == -1) {
+					pointer.setRightChild(newnode);
+					newnode.setParent(pointer);
+					if (this.max == pointer) {
+						this.max = newnode;
+					}
+					return Rebalance(pointer.getRight(), pointer, 'R') + 0;
+				}
+				int balCounter = insertationFinder(newnode, pointer.getRight());
+				return Rebalance(pointer.getRight(), pointer, 'R') + balCounter;
+			} else// if the key is already existed
+			{
+				return -1;
+			}
+		}
+		return 0;
+	}
+
+	/**
+	 * public int Rebalance(IWAVLNode node, IWAVLNode father, char direction)
+	 * Rebalnceing the tree by taking care of all the cases & returning the number
+	 * of rebalances which were made for each WAVLNode
+	 **/
+	public int Rebalance(IWAVLNode node, IWAVLNode father, char direction) {
+		// check if the father is the real father in all methods
+		int rRd = node.getRank() - node.getRight().getRank();// rRd = right Ranks Differences
+		int lRd = node.getRank() - node.getLeft().getRank();// lRd = left Ranks Differences
+		int helperrRd = 0; // the ranks differences of the children
+		int helperlRd = 0;
+		if (rRd > 0 && lRd > 0) {
+			return 0;
+			/** CASE 1 **/
+		} else if ((rRd == 1 && lRd == 0) || (rRd == 0 && lRd == 1)) {
+			node.setRank(node.getRank() + 1); // Premote
+			return 1;
+			/** CASE 2&3 - (ROTATION'S NEEDED) LEFT rotate **/
+		} else if ((rRd == 2 && lRd == 0)) {
+			helperlRd = node.getLeft().getRank() - node.getLeft().getLeft().getRank();
+			helperrRd = node.getLeft().getRank() - node.getLeft().getRight().getRank();
+			/** CASE 3 **/
+			if (helperrRd == 1 && helperlRd == 2) {
+				IWAVLNode fixednode = doubleRotate(node);
+				fixednode.getLeft().setRank(fixednode.getLeft().getRank() - 1); // Demote
+				fixednode.getRight().setRank(fixednode.getRight().getRank() - 1); // Demote
+				fixednode.setRank(fixednode.getRank() + 1); // Promote
+				if (father == null) {
+					this.setRoot(fixednode);
+					fixednode.setParent(null);
+				} else {
+					father.updateChild(direction, fixednode);
+					fixednode.setParent(father);
+				}
+				return 2;
+				/** CASE 2 **/
+			} else if (helperrRd == 2 && helperlRd == 1) {
+				IWAVLNode fixednode = rotate(node);
+				fixednode.getRight().setRank(fixednode.getRight().getRank() - 1); // Demote
+				if (father == null) {
+					this.setRoot(fixednode);
+					fixednode.setParent(null);
+				} else {
+
+					father.updateChild(direction, fixednode);
+					fixednode.setParent(father);
+
+				}
+				return 1;
+			}
+			/** CASE 2&3 - (ROTATION'S NEEDED) RIGHT rotate first **/
+		} else if ((rRd == 0 && lRd == 2)) {
+			helperlRd = node.getRight().getRank() - node.getRight().getLeft().getRank();
+			helperrRd = node.getRight().getRank() - node.getRight().getRight().getRank();
+			/** CASE 2 **/
+			if (helperrRd == 1 && helperlRd == 2) {
+				IWAVLNode fixednode = rotate(node);
+				fixednode.getLeft().setRank(fixednode.getLeft().getRank() - 1);
+				if (father == null) {
+					this.setRoot(fixednode);
+					fixednode.setParent(null);
+				} else {
+
+					father.updateChild(direction, fixednode);
+					fixednode.setParent(father);
+
+				}
+				return 1;
+				/** CASE 3 **/
+			} else if (helperrRd == 2 && helperlRd == 1) {// case 3
+				IWAVLNode fixednode = doubleRotate(node);
+				fixednode.getLeft().setRank(fixednode.getLeft().getRank() - 1);
+				fixednode.getRight().setRank(fixednode.getRight().getRank() - 1);
+				fixednode.setRank(fixednode.getRank() + 1);
+				if (father == null) {
+					this.setRoot(fixednode);
+					fixednode.setParent(null);
+				} else {
+
+					father.updateChild(direction, fixednode);
+					fixednode.setParent(father);
+				}
+				return 2;
+			}
+
+		}
+		return 0;// it will never get here we to care of all of the cases
+					// but the return is necessary for the compiler to work
+	}
+
+	/**
+	 * public IWAVLNode doubleRotate(IWAVLNode node) select if to use
+	 * doublerotateRightLeft or doublerotateLeftRight base on rank differences (work
+	 * on insert cases)
+	 **/
+	public IWAVLNode doubleRotate(IWAVLNode node) {
+		if (node.getRank() != node.getLeft().getRank()) {
+			return doublerotateRightLeft(node);
+		} else {
+			return doublerotateLeftRight(node);
+		}
+
+	}
+
+	/**
+	 * public IWAVLNode doublerotateLeftRight(IWAVLNode node) return double rotate
+	 * left-right on sub-tree which node is a root
+	 **/
+	public IWAVLNode doublerotateLeftRight(IWAVLNode node) {
+		IWAVLNode helper = LeftRotate(node.getLeft());
+		node.setLeftChild(helper);
+		helper.setParent(node);
+		return RightRotate(node);
+	}
+
+	/**
+	 * public IWAVLNode doublerotateRightLeft(IWAVLNode node) return double rotate
+	 * right-left on sub-tree which node is a root
+	 **/
+	public IWAVLNode doublerotateRightLeft(IWAVLNode node) {
+		IWAVLNode helper = RightRotate(node.getRight());
+		node.setRightChild(helper);
+		helper.setParent(node);
+		return LeftRotate(node);
+	}
+
+	/**
+	 * public IWAVLNode rotate(IWAVLNode node) select if to use right rotate or left
+	 * rotate base on rank differences (work on insert cases)
+	 **/
+	public IWAVLNode rotate(IWAVLNode node) {//
+		if (node.getRank() == node.getLeft().getRank()) {
+			return RightRotate(node);
+		} else {
+			return LeftRotate(node);
+		}
+	}
+
+	/**
+	 * public IWAVLNode RightRotate(IWAVLNode node) return Right rotate on sub-tree
+	 * which node is a root
+	 **/
+	public IWAVLNode RightRotate(IWAVLNode node) {
+		IWAVLNode y = node;
+		IWAVLNode z = y.getLeft();
+		IWAVLNode a = z.getRight();
+		z.setParent(y.getParent());
+		z.setRightChild(y);
+		y.setLeftChild(a);
+		y.setParent(z);
+		a.setParent(y);
+		return z;
+	}
+
+	/**
+	 * public IWAVLNode LeftRotate(IWAVLNode node)return Left rotate on sub-tree
+	 * which node is a root
+	 **/
+	public IWAVLNode LeftRotate(IWAVLNode node) {
+		IWAVLNode z = node;
+		IWAVLNode y = node.getRight();
+		IWAVLNode a = y.getLeft();
+		y.setLeftChild(z);
+		y.setParent(z.getParent());
+		z.setRightChild(a);
+		z.setParent(y);
+		a.setParent(z);
+		return y;
+	}
+
+	/**
+	 * public int delete(int k)
+	 *
+	 * deletes an item with key k from the binary tree, if it is there; the tree
+	 * must remain valid (keep its invariants). returns the number of rebalancing
+	 * operations, or 0 if no rebalancing operations were needed. returns -1 if an
+	 * item with key k was not found in the tree.
+	 */
+	public int delete(int k) {
+		IWAVLNode node = this.searchNode(k); // get the WAVLNode to delete
+		/** key k is not exist in the tree **/
+		if (node == null) {
+			return -1;
+		} else {
+			if (this.size() == 1) { // The Root is only node exist inside the tree
+				this.size = this.size - 1; // size will be zero after deduction
+				this.min = null;
+				this.max = null;
+				this.setRoot(null);
+				return 0;
+			}
+
+			IWAVLNode parent = node.getParent(); // get the parent of the WAVLNode to delete
+
+			/** FIX THE MINIMUM UPDATE **/
+			/** check if the node is a min key in a tree **/
+			if (this.min().equals(node.getValue())) {
+				if (node.getRight().getRank() != -1) {
+					this.min = node.getRight();
+				} else {
+					this.min = node.getParent();
+				}
+			}
+			/** MAXIMUM UDPDATE **/
+			/** check if the node is a max key in a tree **/
+			if (this.max().equals(node.getValue())) {
+				if (node.getLeft().getRank() != -1) {
+					this.max = node.getLeft();
+				} else {
+					this.max = node.getParent();
+				}
+			}
+
+			/******************** START TO DELETE ************************/
+			/** Case of delete a leaf **/
+			if ((node.getLeft().getRank() == -1) && (node.getRight().getRank() == -1)) {
+				this.size--;
+				if (node.equals(this.root)) {
+					System.out.print("DELETING ROOT");
+				}
+				if (node.getKey() > parent.getKey()) {
+					parent.setRightChild(externalleaf);
+
+				} else {
+					parent.setLeftChild(externalleaf);
+
+				}
+				return DeleteRebalance(parent);
+
+				/** Case of delete a unary node **/
+			} else if (ifUnary(node)) {
+				this.size--;
+				// get the child of node to connecting to node parent
+				IWAVLNode child = node.getRight();
+				if (child == externalleaf) {
+					child = node.getLeft();
+				}
+				// if the unary node is a root of the tree set his child as root
+				if (node.equals(this.root)) {
+					this.setRoot(child);
+					this.getRoot().setParent(null);
+					return 0;
+
+					// connecting the only child of the node to the parent of the node
+				} else if (node.getKey() > parent.getKey()) {
+					parent.setRightChild(child);
+					child.setParent(parent);
+				} else {
+					parent.setLeftChild(child);
+					child.setParent(parent);
+				}
+				if (parent.getRank() == 2) {
+					return 0;
+				} else if (parent.getRank() == 3) {
+					return DeleteRebalance(parent);
+				}
+
+				/** Case of delete a node with 2 children **/
+			} else {
+				IWAVLNode successor = getSuccessor(node);
+				String infoSuccessor = successor.getValue();
+				int keySuccessor = successor.getKey();
+
+				delete(keySuccessor);
+
+				node.setValue(infoSuccessor);
+				node.setKey(keySuccessor);
+
+			}
+		}
+		return 0;
+	}
+
+	/**
+	 * Republic int DeleteRebalance(IWAVLNode node) balance to parent node of node
+	 * that delete from the tree, the problem fixed or moved up to his parent
+	 **/
+	public int DeleteRebalance(IWAVLNode node) {
+		int cnt = 0;
+		boolean rightProblam = true;
+		if (node == null) {
+			return 0;
+
+			/** case of node is a leaf and his rank not equal to 0 **/
+		} else if ((node.getLeft().getRank() == -1) && (node.getRight().getRank() == -1) && (node.getRank() != 0)) {
+			DemoteRank(node);
+			cnt++;
+			return cnt + DeleteRebalance(node.getParent());
+
+			/** Start case 1 "Demote" - parent with diffrence rank - (3,2) or (2,3) **/
+		} else if (((node.getRank() - node.getLeft().getRank()) == 3)
+				&& ((node.getRank() - node.getRight().getRank()) == 2)
+				|| ((node.getRank() - node.getLeft().getRank()) == 2)
+						&& ((node.getRank() - node.getRight().getRank()) == 3)) {
+			DemoteRank(node);
+			cnt++;
+			return cnt + DeleteRebalance(node.getParent());
+			/** End of case 1 "Demote" **/
+
+			/** Start of cases 2,3 & 4 when parent with rank difference - (3,1) or (1,3) **/
+		} else if (((node.getRank() - node.getLeft().getRank()) == 3)
+				&& ((node.getRank() - node.getRight().getRank()) == 1)
+				|| ((node.getRank() - node.getLeft().getRank()) == 1)
+						&& ((node.getRank() - node.getRight().getRank()) == 3)) {
+
+			/**
+			 * get the relevant child of node to rebalance , the child with rank difference
+			 * - 1
+			 **/
+			IWAVLNode relevantChild = node.getRight();
+			if (node.getRank() - relevantChild.getRank() != 1) {
+				relevantChild = node.getLeft();
+				rightProblam = false;
+			}
+
+			/** Start of case 2 to rebalance "Double demote" **/
+			if ((relevantChild.getRank() - relevantChild.getRight().getRank() == 2)
+					&& (relevantChild.getRank() - relevantChild.getLeft().getRank() == 2)) {
+				DemoteRank(relevantChild);
+				cnt++;
+				DemoteRank(node);
+				cnt++;
+				return cnt + DeleteRebalance(node.getParent());
+				/** End of case 2 to rebalance "Double demote" **/
+
+				/** if is case of right relevant child - case 3 & 4 to right **/
+			} else if (rightProblam) {
+				/** Start of case 3 to rebalance "left rotate" **/
+				if (relevantChild.getRank() - relevantChild.getRight().getRank() == 1) {
+					IWAVLNode parent = node.getParent();
+					if (node.equals(root)) {
+						this.setRoot(LeftRotate(node));
+						this.getRoot().setParent(null);
+						/** fix the ranks of left rotate **/
+						PromteRank(this.getRoot());
+						DemoteRank(this.getRoot().getLeft());
+						// check if Z in left rotate need extra demote after the left rotate (IF z is a
+						// 2,2leaf)
+						if ((this.getRoot().getLeft().getLeft().getRank() == -1)
+								&& (this.getRoot().getLeft().getRight().getRank() == -1)) {
+							if (this.getRoot().getLeft().getRank() != 0) {
+								DemoteRank(this.getRoot().getLeft());
+								cnt++;
+							}
+						}
+					} else if (parent.getKey() > node.getKey()) { // the node is left child of is parent
+						parent.setLeftChild(LeftRotate(node));
+						parent.getLeft().setParent(parent);
+						/** fix the ranks of left rotate **/
+						PromteRank(parent.getLeft());
+						DemoteRank(parent.getLeft().getLeft());
+						// check if Z in left rotate need extra demote after the left rotate
+						if ((parent.getLeft().getLeft().getLeft().getRank() == -1)
+								&& (parent.getLeft().getLeft().getRight().getRank() == -1)) {
+							if (parent.getLeft().getLeft().getRank() != 0) {
+								DemoteRank(parent.getLeft().getLeft());
+								cnt++;
+
+							}
+						}
+					} else { // the node is right child of is parent
+						parent.setRightChild(LeftRotate(node));
+						parent.getRight().setParent(parent);
+						/** fix the ranks of left rotate **/
+						PromteRank(parent.getRight());
+						DemoteRank(parent.getRight().getLeft());
+						// check if Z in left rotate need extra demote after the left rotate
+						if ((parent.getRight().getLeft().getLeft().getRank() == -1)
+								&& (parent.getRight().getLeft().getRight().getRank() == -1)) {
+							if (parent.getRight().getLeft().getRank() != 0) {
+								DemoteRank(parent.getRight().getLeft());
+								cnt++;
+							}
+						}
+					}
+					cnt++;
+					return cnt;
+					/** End of case 3 to rebalance "left rotate" **/
+
+					/** Start of case 4 to reblacnce "right-left double rotate" **/
+				} else if (relevantChild.getRank() - relevantChild.getRight().getRank() == 2) {
+					IWAVLNode parent = node.getParent();
+					if (node.equals(root)) {
+						this.setRoot(doublerotateRightLeft(node));
+						this.getRoot().setParent(null);
+						/** fix the ranks of right-left double rotate **/
+						PromteRank(this.getRoot());
+						PromteRank(this.getRoot());
+						DemoteRank(this.getRoot().getRight());
+						DemoteRank(this.getRoot().getLeft());
+						DemoteRank(this.getRoot().getLeft());
+					} else if (parent.getKey() > node.getKey()) { // the node is left child of is parent, set leff:
+						parent.setLeftChild(doublerotateRightLeft(node));
+						parent.getLeft().setParent(parent);
+						/** fix the ranks of right-left double rotate **/
+						PromteRank(parent.getLeft());
+						PromteRank(parent.getLeft());
+						DemoteRank(parent.getLeft().getRight());
+						DemoteRank(parent.getLeft().getLeft());
+						DemoteRank(parent.getLeft().getLeft());
+					} else { // the node is right child of is parent
+						parent.setRightChild(doublerotateRightLeft(node)); // same "right-left double rotate" ! just
+																			// right
+																			// child of the parent
+						parent.getRight().setParent(parent);
+						/** fix the ranks of right-left double rotate **/
+						PromteRank(parent.getRight());
+						PromteRank(parent.getRight());
+						DemoteRank(parent.getRight().getRight());
+						DemoteRank(parent.getRight().getLeft());
+						DemoteRank(parent.getRight().getLeft());
+					}
+					cnt++;
+					cnt++;
+					return cnt;
+					/** End of case 4 to reblacnce "right-left double rotate" **/
+				}
+
+				/** if is case of left relevant child - case 3 & 4 to left **/
+			} else {
+				/** Start of case 3 to rebalance "right rotate" **/
+				if (relevantChild.getRank() - relevantChild.getLeft().getRank() == 1) {
+					IWAVLNode parent = node.getParent();
+					if (node.equals(root)) {
+						this.setRoot(RightRotate(node));
+						this.getRoot().setParent(null);
+						/** fix the ranks of left rotate **/
+						PromteRank(this.getRoot());
+						DemoteRank(this.getRoot().getRight());
+						// check if Z in left rotate need extra demote after the left rotate
+						if ((this.getRoot().getRight().getLeft().getRank() == -1)
+								&& (this.getRoot().getRight().getRight().getRank() == -1)) {
+							if (this.getRoot().getRight().getRank() != 0) {
+								DemoteRank(this.getRoot().getRight());
+								cnt++;
+							}
+						}
+					} else if (parent.getKey() > node.getKey()) { // the node is left child of is parent
+						parent.setLeftChild(RightRotate(node));
+						parent.getLeft().setParent(parent);
+						/** fix the ranks of left rotate **/
+						PromteRank(parent.getLeft());
+						DemoteRank(parent.getLeft().getRight());
+						// check if Z in right rotate need extra demote after the right rotate
+						if ((parent.getLeft().getRight().getLeft().getRank() == -1)
+								&& (parent.getLeft().getRight().getRight().getRank() == -1)) {
+							if (parent.getLeft().getRight().getRank() != 0) {
+								DemoteRank(parent.getLeft().getRight());
+								cnt++;
+							}
+						}
+					} else { // the node is right child of is parent
+						parent.setRightChild(RightRotate(node));
+						parent.getRight().setParent(parent);
+						/** fix the ranks of left rotate **/
+						PromteRank(parent.getRight());
+						DemoteRank(parent.getRight().getRight());
+						// check if Z in right rotate need extra demote after the right rotate
+						if ((parent.getRight().getRight().getLeft().getRank() == -1)
+								&& (parent.getRight().getRight().getRight().getRank() == -1)) {
+							if (parent.getRight().getRight().getRank() != 0) {
+								DemoteRank(parent.getRight().getRight());
+								cnt++;
+							}
+						}
+					}
+					return cnt;
+					/** End of case 3 to rebalance "right rotate" **/
+
+					/** Start of case 4 to reblacnce "left-right double rotate" **/
+				} else if (relevantChild.getRank() - relevantChild.getLeft().getRank() == 2) {
+					IWAVLNode parent = node.getParent();
+					if (node.equals(root)) {
+						this.setRoot(doublerotateLeftRight(node));
+						this.getRoot().setParent(null);
+						/** fix the ranks of right-left double rotate **/
+						PromteRank(this.getRoot());
+						PromteRank(this.getRoot());
+						DemoteRank(this.getRoot().getRight());
+						DemoteRank(this.getRoot().getRight());
+						DemoteRank(this.getRoot().getLeft());
+					} else if (parent.getKey() > node.getKey()) { // the node is left child of is parent
+						parent.setLeftChild(doublerotateLeftRight(node));
+						parent.getLeft().setParent(parent);
+						/** fix the ranks of left-right double rotate **/
+						PromteRank(parent.getLeft());
+						PromteRank(parent.getLeft());
+						DemoteRank(parent.getLeft().getRight());
+						DemoteRank(parent.getLeft().getRight());
+						DemoteRank(parent.getLeft().getLeft());
+					} else { // the node is right child of is parent
+						parent.setRightChild(doublerotateLeftRight(node));
+						parent.getRight().setParent(parent);
+						/** fix the ranks of left-right double rotate **/
+						PromteRank(parent.getRight());
+						PromteRank(parent.getRight());
+						DemoteRank(parent.getRight().getRight());
+						DemoteRank(parent.getRight().getRight());
+						DemoteRank(parent.getRight().getLeft());
+
+					}
+					cnt++;
+					cnt++;
+					return cnt;
+
+					/** End of case 4 to reblacnce "left-right double rotate" **/
+				}
+			}
+			/** End of cases 3 & 4 **/
+		} /** End of cases 2,3 & 4 when parent with diffrence rank - (3,1) or (1,3) **/
+		return cnt;
+	}
+
+	/**
+	 * public boolean ifUnary(IWAVLNode node) check if is unary node
+	 **/
+	public boolean ifUnary(IWAVLNode node) {
+		if ((node.getRight().getRank() == -1 && node.getLeft().getRank() != -1)
+				|| (node.getRight().getRank() != -1 && node.getLeft().getRank() == -1))
+			return true;
+		return false;
+	}
+
+	/**
+	 * public IWAVLNode getSuccessor(IWAVLNode node) Returns the Successor of the
+	 * node inserted The return node is the node with the smallest key that larger
+	 * then the nodes key. the next IN-ORDER key
+	 */
+	public IWAVLNode getSuccessor(IWAVLNode node) {
+		IWAVLNode tempNode = node;
+		if (tempNode.getRight().getRank() != -1) {// if Right child is not external leaf
+			tempNode = tempNode.getRight();
+			while (tempNode.getLeft().getRank() != -1) {
+				tempNode = tempNode.getLeft();
+			}
+			return tempNode;
+		}
+		IWAVLNode tempNode2 = tempNode.getParent();
+		while (tempNode2 != null && tempNode == tempNode2.getRight()) {
+			tempNode = tempNode2;
+			tempNode2 = tempNode.getParent();
+		}
+		return tempNode2;
+	}
+
+	/**
+	 * public String min()
+	 *
+	 * Returns the info of the item with the smallest key in the tree, or null if
+	 * the tree is empty
+	 */
+	public String min() {
+		return this.min.getValue();
+	}
+
+	/**
+	 * public String max()
+	 *
+	 * Returns the info of the item with the largest key in the tree, or null if the
+	 * tree is empty
+	 */
+	public String max() {
+		return this.max.getValue();
+	}
+
+	/**
+	 * public int[] keysToArray()
+	 *
+	 * Returns a sorted array which contains all keys in the tree, or an empty array
+	 * if the tree is empty.
+	 */
+	public int[] keysToArray() {
+		IWAVLNode node = this.root;
+		int[] KeysArray = new int[this.size()];
+		if (this.size() == 0) {
+			return KeysArray;
+		}
+		int i = 0;
+		AllKeys(node, KeysArray, i);
+		return KeysArray;
+	}
+
+	/**
+	 * public int AllKeys() A recursive Help method that does in-order walk over the
+	 * tree and saves the keys in order inside Array.
+	 */
+	public int AllKeys(IWAVLNode node, int[] arr, int i) {
+		if (node.getRank() == -1) {
+			return i;
+		} else {
+			i = AllKeys(node.getLeft(), arr, i);
+			arr[i] = node.getKey();
+			i++;
+			i = AllKeys(node.getRight(), arr, i);
+			return i;
+		}
+	}
+
+	/**
+	 * public String[] infoToArray()
+	 *
+	 * Returns an array which contains all info in the tree, sorted by their
+	 * respective keys, or an empty array if the tree is empty.
+	 */
+	public String[] infoToArray() {
+		IWAVLNode node = this.root;
+		String[] InfoArray = new String[this.size()];
+		if (this.size() == 0) {
+			return InfoArray;
+		}
+		int i = 0;
+		AllInfo(node, InfoArray, i);
+		return InfoArray;
+	}
+
+	/**
+	 * public int AllInfo() A recursive Help method that does in-order walk over the
+	 * tree and saves the info of the node in the order of the keys inside Array.
+	 */
+	public int AllInfo(IWAVLNode node, String[] arr, int i) {
+		if (node.getRank() == -1) {
+			return i;
+		} else {
+			i = AllInfo(node.getLeft(), arr, i);
+			arr[i] = node.getValue();
+			i++;
+			i = AllInfo(node.getRight(), arr, i);
+			return i;
+		}
+
+	}
+
+	/**
+	 * public int size()
+	 *
+	 * Returns the number of nodes in the tree.
+	 *
+	 * precondition: none postcondition: none
+	 */
+	public int size() {
+		return this.size; // to be replaced by student code
+	}
+
+	/**
+	 * public IWAVLNode getRoot()
+	 *
+	 * Returns the root WAVL node, or null if the tree is empty
+	 *
+	 * precondition: none postcondition: none
+	 */
+	public IWAVLNode getRoot() {
+		return this.root;
+	}
+
+	/**
+	 * public int select(int i)
+	 *
+	 * Returns the value of the i'th smallest key (return -1 if tree is empty)
+	 * Example 1: select(1) returns the value of the node with minimal key Example
+	 * 2: select(size()) returns the value of the node with maximal key Example 3:
+	 * select(2) returns the value 2nd smallest minimal node, i.e the value of the
+	 * node minimal node's successor
+	 *
+	 * precondition: size() >= i > 0 postcondition: none
+	 */
+	public String select(int i) {
+		if (this.empty()) {
+			return "-1";
+		}
+		String[] infoArray = this.infoToArray();
+		return infoArray[i - 1];
+	}
+
+	/**
+	 * public void trioUpDate(IWAVLNode node) run over the all the node's connected
+	 * to the node inserted and update their size. will perform this function after
+	 * deleting and inserting. it performs recursion over the parents and update
+	 * their size. from the node's direct parent to the root of the tree.
+	 * 
+	 * @param node
+	 */
+	public void trioUpDate(IWAVLNode node) {
+		node.getRight().updateSize();
+		node.getLeft().updateSize();
+		node.updateSize();
+		if (node.getParent() != null) {
+			trioUpDate(node.getParent());
+		}
+	}
+
+	/**
+	 * public interface IWAVLNode ! Do not delete or modify this - otherwise all
+	 * tests will fail !
+	 */
+	public interface IWAVLNode {
+		public int getKey(); // returns node's key (for virtual node return -1)
+
+		public String getValue(); // returns node's value [info] (for virtual node return null)
+
+		public IWAVLNode getLeft(); // returns left child (if there is no left child return null)
+
+		public IWAVLNode getRight(); // returns right child (if there is no right child return null)
+
+		public boolean isRealNode(); // Returns True if this is a non-virtual WAVL node (i.e not a virtual leaf or a
+										// Sentinel)
+
+		public int getSubtreeSize(); // Returns the number of real nodes in this node's subtree (Should be
+										// implemented in O(1))
+
+		/** EXTRA FUNCTIONS TO IMPLIMANTE - OUR ADDITOIN TO THE INTERFACE **/
+		public int getRank(); // returns node's rank (for virtual node return -1)
+
+		public void setRank(int newRank); // returns node's rank (for virtual node return -1)
+
+		public void setLeftChild(IWAVLNode LeftChild); // returns left child (if there is no left child return null)
+
+		public void setRightChild(IWAVLNode RightChild); // returns right child (if there is no right child return null)
+
+		public void setParent(IWAVLNode Parent); // Sets the Parent of the Node
+
+		public void updateChild(char c, IWAVLNode node);// Update the right/left children of the Node given direction
+														// R=right/L=left.
+
+		public IWAVLNode getParent(); // Returns the parent(WAVLNode) of the Node
+
+		public void setValue(String value); // Given a String value ,sets the info of the node to value.
+
+		public void setKey(int key); // Given a integer key ,sets the key of the node to key.
+
+		public void updateSize(); // update the size of node (use after delete ,insert and Rebalance operation)
+	}
+
+	/**
+	 * public class WAVLNode implements IWAVLNode
+	 */
+	public class WAVLNode implements IWAVLNode {
+		private int Key;
+		private String info;
+		private IWAVLNode Parent;
+		private IWAVLNode RightChild;
+		private IWAVLNode LeftChild;
+		private int Rank;
+		private int size;
+
+		/**
+		 * public WAVLNode(int k, String i, WAVLNode parent) constructor WAVL Node, used
+		 * to create REAL nodes in a tree
+		 **/
+		public WAVLNode(int k, String i, WAVLNode parent) {
+			this.Rank = LEAF_RANK;
+			this.RightChild = new WAVLNode();
+			this.LeftChild = new WAVLNode();
+			this.info = i;
+			this.Key = k;
+			this.Parent = parent;
+			this.size = 1; // LEAF SIZE = 1
+		}
+
+		/**
+		 * public WAVLNode() constructor WAVL Node, used to create external leaf
+		 **/
+		public WAVLNode() {
+			this.Rank = EXTERNAL_LEAF_RANK;
+			this.Key = Integer.MIN_VALUE; // the minimum value represented by Integer-Type(-2147483648)
+			this.RightChild = null;
+			this.LeftChild = null;
+			this.info = null;
+			this.Parent = null;
+			this.size = EXTERNAL_LEAF_SIZE;
+		}
+
+		/** getters & setters for the field of WAVLNode **/
+		public int getRank() {
+			return Rank; // returns the node's rank (integer)
+		}
+
+		public void setRank(int newRank) {
+			Rank = newRank; // Sets the node's rank (integer)
+			this.updateSize();
+		}
+
+		public IWAVLNode getParent() {
+			return Parent; // returns the node's parent (WAVLNode)
+		}
+
+		public void setParent(IWAVLNode parent) {
+			Parent = parent; // Sets the node's parent field
+		}
+
+		public String getValue() {
+			return this.info; // returns the node's info (String)
+		}
+
+		public void setValue(String value) {
+			info = value; // Sets the node's with new info (String)
+		}
+
+		public void setKey(int key) {
+			Key = key; // Sets the node's with new key (integer)
+		}
+
+		public int getKey() {
+			return this.Key; // returns the node's key (integer)
+		}
+
+		public IWAVLNode getLeft() {
+			return this.LeftChild; // returns the node's left child (WAVLNode)
+		}
+
+		public void setLeftChild(IWAVLNode leftChild) {
+			this.LeftChild = leftChild; // sets the left child of the node
+		}
+
+		public IWAVLNode getRight() {
+			return this.RightChild; // returns the node's right child (WAVLNode)
+		}
+
+		public void setRightChild(IWAVLNode rightChild) {
+			RightChild = rightChild; // sets the left child of the node
+		}
+
+		/**
+		 * public boolean isRealNode() Returns True if this is a non-virtual WAVL node
+		 * (i.e not a virtual leaf or a Sentinel)
+		 **/
+		public boolean isRealNode() {
+			if (this.Rank == EXTERNAL_LEAF_RANK)
+				return false;
+			return true;
+		}
+
+		/**
+		 * public int getSubtreeSize() return the size of the sub-tree of the node.
+		 **/
+		public int getSubtreeSize() {
+			return this.size;
+		}
+
+		/**
+		 * public void updateChild(char c, IWAVLNode node) Getting the direction 'L'/'R'
+		 * and returning the matched child
+		 **/
+		public void updateChild(char c, IWAVLNode node) {
+			if (c == 'L') {
+				this.LeftChild = node;
+			} else if (c == 'R') {
+				this.RightChild = node;
+			}
+		}
+
+		/**
+		 * public void updateSize() used to get the update the size of the node's
+		 * subtree . works on WAVLNode Objects. deals with different 5 case's of nodes.
+		 */
+		public void updateSize() {
+			// CASE 1: if the node is EXTERNAL-LEAF
+			if (this.getRank() == -1) {
+				this.size = 0;
+			}
+			/////////////// CASE 2-3 Unary Nodes///////////////
+			// CASE 2: Only the Right children is Real Node
+			else if ((this.getLeft().getRank() == -1) && (this.getRight().getRank() != -1)) {
+				this.size = 1 + this.getRight().getSubtreeSize();
+			}
+			// CASE 3: Only the Left children is Real Node
+			else if ((this.getLeft().getRank() != -1) && (this.getRight().getRank() == -1)) {
+				this.size = 1 + this.getLeft().getSubtreeSize();
+			}
+			// CASE 4: TOW Real children's
+			else if ((this.getLeft().getRank() != -1) && (this.getRight().getRank() != -1)) {
+				this.size = 1 + this.getLeft().getSubtreeSize() + this.getRight().getSubtreeSize();
+			}
+			// CASE 5: NO Real children's
+			else if ((this.getLeft().getRank() == -1) && (this.getRight().getRank() == -1)) {
+				this.size = 1;
+			}
+		}
+
+	}
+}
